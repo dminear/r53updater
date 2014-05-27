@@ -80,7 +80,7 @@ foreach my $domain (@{$keys->{domains}}) {
 	my $update = Net::Amazon::Route53::ResourceRecordSet::Change->new(
 		route53 => $route53,
 		hostedzone => $zone,
-		name => "aududu.com",
+		name => $domain,
 		ttl => $s->{ttl},
 		type => "A",
 		values => [ $currentIP ],
