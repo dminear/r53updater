@@ -25,13 +25,16 @@ use JSON qw/encode_json/;
 use JSON::Parse ':all';
 use FileHandle;
 use Net::Address::IP::Local;
+use Socket;
 
+my $debug = 0;
+my $someotherdomain = "minear.name";
 my $jsonfilename = "r53updater.json";
 my $keys = json_file_to_perl( $jsonfilename );
 
 # need to figure out my IP address here
-my $currentIP = getIPaddress( { "method" => "public",
-								"param" => "eth0" } );
+my $currentIP = getIPaddress( { "method" => "domain", "param" => $someotherdomain } );
+print "Determined our address is $currentIP\n" if $debug;
 
 if ($keys->{"lastIP"} eq $currentIP) {	# no change
 	exit 0;
@@ -56,7 +59,7 @@ foreach my $domain (@{$keys->{domains}}) {
 	}
 
 	# use the Net::Amazon::Route53::HostedZone object
-	print "Zone " . $zone->name . "\n";
+	print "Zone " . $zone->name . "\n" if $debug;
 	my @sets = $zone->resource_record_sets;
 	my $set = $sets[0];
 
@@ -69,8 +72,7 @@ foreach my $domain (@{$keys->{domains}}) {
 	}
 
 	my $s= $arecords[0];
-	#print Dumper($s);
-	print $s->{type} . ":" . $s->{name} . ":" . join (" ", @{$s->{values}}) . "\n";
+	print $s->{type} . ":" . $s->{name} . ":" . join (" ", @{$s->{values}}) . "\n" if $debug;
 
 	if (${$s->{values}}[0] eq $keys->{"lastIP"}) {
 		print "Domain $domain has same A record, skipping.\n";
@@ -97,12 +99,15 @@ sub getIPaddress {
 
 	print "method $method with param $param\n";
 
-	if ($method =~ /if/ ) {
+	if ($method eq "if" ) {
 		# TODO take the param and get the IP address for that interface
 		return "192.168.0.1";
-	} elsif ( $method =~ /public/ ) {
+	} elsif ( $method eq "public" ) {
 		my $address  = Net::Address::IP::Local->public;
 		return $address;
+	} elsif ( $method eq "domain" ) {
+		# lookup address of param and use that
+		return inet_ntoa(inet_aton($param));	
 	} else {
 		die "cannot determine address";
 	}
